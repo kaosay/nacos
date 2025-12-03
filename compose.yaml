@@ -1,0 +1,23 @@
+version: "2"
+services:
+  nacos:
+    image: nacos/nacos-server:latest
+    cpus: 3.0
+    mem_limit: 8g
+    restart: always
+    container_name: nacos
+    environment:
+      - PREFER_HOST_MODE=hostname
+      - MODE=standalone
+      - NACOS_AUTH_IDENTITY_KEY=serverIdentity
+      - NACOS_AUTH_IDENTITY_VALUE=security
+      - NACOS_AUTH_TOKEN=VGhpc0lzTXlDdXN0b21TZWNyZXRLZXkwMTIzNDU2Nzg=
+    volumes:
+      - ./conf:/home/nacos/conf
+      - ./logs:/home/nacos/logs
+      - ./data:/home/nacos/data
+    ports:
+      - "8080:8080"
+      - "8848:8848"
+      - "9848:9848"
+

@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: mariadb
+spec:
+  serviceName: mysql-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      initContainers:
+      - name: init-schema
+        image: busybox:1.35  # 或 alpine/curl
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          NACOS_VERSION=3.1.1
+          SCHEMA_URL="https://raw.githubusercontent.com/alibaba/nacos/${NACOS_VERSION}/distribution/conf/mysql-schema.sql"
+          wget -O /initdb/mysql-schema.sql "$SCHEMA_URL" || exit 1
+          echo "Schema downloaded"
+        volumeMounts:
+        - name: initdb
+          mountPath: /initdb
+      containers:
+      - name: mysql
+        image: mariadb:11.8
+        args:
+        - "--character-set-server=utf8mb4"
+        - "--collation-server=utf8mb4_unicode_ci"
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "root"
+        - name: MYSQL_DATABASE
+          value: "nacos_devtest"
+        - name: MYSQL_USER
+          value: "nacos"
+        - name: MYSQL_PASSWORD
+          value: "nacos"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: database
+          mountPath: /var/lib/mysql
+        - name: initdb
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: initdb
+        emptyDir: {}  # 临时卷，只用于首次 init
+
+  volumeClaimTemplates:
+  - metadata:
+      name: database                # 生成的 PVC 前缀：data-mysql-0、data-mysql-1...
+      labels:
+        app: mysql
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: gp3
+      resources:
+        requests:
+          storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+  namespace: mariadb
+spec:
+  clusterIP: None
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    app: mysql
